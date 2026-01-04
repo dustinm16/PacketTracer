@@ -1,6 +1,6 @@
 """Database schema definitions and migrations."""
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA_SQL = """
 -- Schema version tracking
@@ -508,6 +508,67 @@ CREATE TABLE IF NOT EXISTS relay_flows (
 
 CREATE INDEX IF NOT EXISTS idx_relay_flows_agent ON relay_flows(agent_id);
 CREATE INDEX IF NOT EXISTS idx_relay_flows_time ON relay_flows(last_seen DESC);
+
+-- IP Reputation cache
+CREATE TABLE IF NOT EXISTS reputation_cache (
+    ip TEXT PRIMARY KEY,
+    threat_level TEXT NOT NULL,
+    confidence_score INTEGER DEFAULT 0,
+    total_reports INTEGER DEFAULT 0,
+    last_reported REAL,
+    categories TEXT,  -- JSON array
+    isp TEXT,
+    domain TEXT,
+    country_code TEXT,
+    is_tor INTEGER DEFAULT 0,
+    is_vpn INTEGER DEFAULT 0,
+    is_proxy INTEGER DEFAULT 0,
+    is_datacenter INTEGER DEFAULT 0,
+    cached_at REAL NOT NULL,
+    expires_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_reputation_expires ON reputation_cache(expires_at);
+CREATE INDEX IF NOT EXISTS idx_reputation_threat ON reputation_cache(threat_level);
+
+-- Security alerts
+CREATE TABLE IF NOT EXISTS alerts (
+    id TEXT PRIMARY KEY,
+    session_id INTEGER,
+    alert_type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    source_ip TEXT,
+    dest_ip TEXT,
+    port INTEGER,
+    protocol TEXT,
+    flow_key TEXT,
+    details TEXT,  -- JSON
+    timestamp REAL NOT NULL,
+    acknowledged INTEGER DEFAULT 0,
+    acknowledged_at REAL,
+    acknowledged_by TEXT,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_session ON alerts(session_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_alerts_type ON alerts(alert_type);
+CREATE INDEX IF NOT EXISTS idx_alerts_severity ON alerts(severity);
+CREATE INDEX IF NOT EXISTS idx_alerts_unacked ON alerts(acknowledged) WHERE acknowledged = 0;
+CREATE INDEX IF NOT EXISTS idx_alerts_source ON alerts(source_ip);
+
+-- IP Blacklist
+CREATE TABLE IF NOT EXISTS ip_blacklist (
+    ip TEXT PRIMARY KEY,
+    reason TEXT,
+    added_at REAL NOT NULL,
+    added_by TEXT,
+    expires_at REAL,  -- NULL for permanent
+    is_active INTEGER DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_blacklist_active ON ip_blacklist(is_active);
 """
 
 
@@ -566,6 +627,9 @@ def _migrate(conn, from_version: int, to_version: int) -> None:
 
     if from_version < 4 and to_version >= 4:
         _migrate_v3_to_v4(conn)
+
+    if from_version < 5 and to_version >= 5:
+        _migrate_v4_to_v5(conn)
 
     # Record new version
     conn.execute(
@@ -741,6 +805,77 @@ def _migrate_v3_to_v4(conn) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_relay_metrics_time ON relay_metrics(timestamp DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_relay_flows_agent ON relay_flows(agent_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_relay_flows_time ON relay_flows(last_seen DESC)")
+    except Exception:
+        pass
+
+
+def _migrate_v4_to_v5(conn) -> None:
+    """Migration: Add security features (reputation, alerts, blacklist)."""
+    # Create reputation_cache table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS reputation_cache (
+            ip TEXT PRIMARY KEY,
+            threat_level TEXT NOT NULL,
+            confidence_score INTEGER DEFAULT 0,
+            total_reports INTEGER DEFAULT 0,
+            last_reported REAL,
+            categories TEXT,
+            isp TEXT,
+            domain TEXT,
+            country_code TEXT,
+            is_tor INTEGER DEFAULT 0,
+            is_vpn INTEGER DEFAULT 0,
+            is_proxy INTEGER DEFAULT 0,
+            is_datacenter INTEGER DEFAULT 0,
+            cached_at REAL NOT NULL,
+            expires_at REAL NOT NULL
+        )
+    """)
+
+    # Create alerts table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS alerts (
+            id TEXT PRIMARY KEY,
+            session_id INTEGER,
+            alert_type TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            source_ip TEXT,
+            dest_ip TEXT,
+            port INTEGER,
+            protocol TEXT,
+            flow_key TEXT,
+            details TEXT,
+            timestamp REAL NOT NULL,
+            acknowledged INTEGER DEFAULT 0,
+            acknowledged_at REAL,
+            acknowledged_by TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        )
+    """)
+
+    # Create ip_blacklist table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ip_blacklist (
+            ip TEXT PRIMARY KEY,
+            reason TEXT,
+            added_at REAL NOT NULL,
+            added_by TEXT,
+            expires_at REAL,
+            is_active INTEGER DEFAULT 1
+        )
+    """)
+
+    # Create indexes
+    try:
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_reputation_expires ON reputation_cache(expires_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_reputation_threat ON reputation_cache(threat_level)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_session ON alerts(session_id, timestamp DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_type ON alerts(alert_type)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_severity ON alerts(severity)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_source ON alerts(source_ip)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_blacklist_active ON ip_blacklist(is_active)")
     except Exception:
         pass
 

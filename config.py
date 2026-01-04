@@ -106,3 +106,21 @@ RELAY_AGENT_METRICS_INTERVAL = 60  # Seconds between metrics reports
 RELAY_AGENT_FLOW_INTERVAL = 10  # Seconds between flow data reports
 RELAY_DATA_RETENTION_DAYS = 30  # Days to keep relay agent data
 RELAY_MAX_MESSAGE_SIZE = 1024 * 1024  # Maximum message size (1MB)
+
+# IP Reputation settings (AbuseIPDB)
+REPUTATION_API_KEY = None  # Set to your AbuseIPDB API key
+REPUTATION_CACHE_SIZE = 10000  # Maximum cached reputation lookups
+REPUTATION_CACHE_TTL = 86400  # 24 hours
+REPUTATION_RATE_LIMIT = 1000  # Requests per day (AbuseIPDB free tier)
+REPUTATION_CHECK_ENABLED = True  # Enable/disable reputation checking
+
+# Alerting settings
+ALERTS_ENABLED = True
+ALERTS_MAX_STORED = 1000  # Maximum alerts to keep in memory
+ALERTS_PORT_SCAN_THRESHOLD = 10  # Unique ports before triggering port scan alert
+ALERTS_HIGH_BANDWIDTH_MB = 100  # MB threshold for high bandwidth alert
+ALERTS_CONNECTION_SPIKE = 100  # New connections/second threshold
+
+# Connection graph settings
+GRAPH_MAX_NODES = 100  # Maximum nodes to track in graph
+GRAPH_MIN_BYTES = 1000  # Minimum bytes to include edge in graph
