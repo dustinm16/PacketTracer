@@ -2,6 +2,7 @@
 
 import time
 import threading
+import logging
 import requests
 from dataclasses import dataclass, field
 from typing import Dict, Optional, List, Callable, Set
@@ -10,6 +11,8 @@ from collections import OrderedDict
 from queue import Queue
 
 from utils.network import is_private_ip
+
+logger = logging.getLogger(__name__)
 
 
 class ThreatLevel(Enum):
@@ -236,7 +239,10 @@ class ReputationChecker:
                 if result and self.callback:
                     self.callback(result)
 
-            except Exception:
+            except Exception as e:
+                # Queue.get timeout is expected, don't log it
+                if "Empty" not in type(e).__name__:
+                    logger.debug(f"Error in reputation background worker: {e}")
                 continue
 
     def _check_ip_sync(self, ip: str) -> Optional[ReputationResult]:
@@ -266,8 +272,10 @@ class ReputationChecker:
                 if result.is_malicious:
                     self.malicious_found += 1
                 return result
-        except Exception:
-            pass
+        except requests.RequestException as e:
+            logger.warning(f"AbuseIPDB API request failed for {ip}: {e}")
+        except (KeyError, ValueError, TypeError) as e:
+            logger.warning(f"Failed to parse AbuseIPDB response for {ip}: {e}")
 
         return None
 

@@ -2,6 +2,7 @@
 
 import re
 import threading
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Set, Any
 from collections import deque
@@ -11,6 +12,8 @@ from enum import Enum
 from scapy.packet import Packet
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.l2 import Ether
+
+logger = logging.getLogger(__name__)
 
 
 class OSFamily(Enum):
@@ -531,10 +534,11 @@ class DeepPacketInspector:
                         hostname = payload[name_start:name_start + name_len]
                         try:
                             return hostname.decode('ascii')
-                        except:
-                            pass
+                        except (UnicodeDecodeError, ValueError) as e:
+                            logger.debug(f"Failed to decode SNI hostname: {e}")
             return ""
-        except:
+        except (IndexError, ValueError) as e:
+            logger.debug(f"Failed to extract TLS SNI: {e}")
             return ""
 
     def _extract_app_details(self, inspection: FlowInspection, capture: PacketCapture) -> None:
@@ -582,8 +586,8 @@ class DeepPacketInspector:
                             app.server = value
                         elif key_lower == 'content-type':
                             app.content_type = value
-        except:
-            pass
+        except (UnicodeDecodeError, ValueError, IndexError) as e:
+            logger.debug(f"Failed to extract HTTP details: {e}")
 
     def _extract_ssh_details(self, app: ApplicationSignature, payload: bytes) -> None:
         """Extract SSH version details."""
@@ -594,8 +598,8 @@ class DeepPacketInspector:
                 app.ssh_version = parts[0]
                 if len(parts) > 1:
                     app.ssh_software = parts[1]
-        except:
-            pass
+        except (UnicodeDecodeError, ValueError, IndexError) as e:
+            logger.debug(f"Failed to extract SSH details: {e}")
 
     def get_inspection(self, flow_key: str) -> Optional[FlowInspection]:
         """Get inspection for a flow."""
