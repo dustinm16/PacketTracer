@@ -25,7 +25,7 @@ A real-time network packet analysis tool with a terminal-based dashboard. Packet
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/packettracer.git
+git clone https://github.com/dustinm16/packettracer.git
 cd packettracer
 
 # Install dependencies
