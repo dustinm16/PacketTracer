@@ -35,10 +35,19 @@ from dashboard.panels.analysis import AnalysisPanel, PacketAnalyzer
 from dashboard.panels.ports import PortsPanel
 from dashboard.panels.dns import DNSPanel
 from dashboard.panels.relay import RelayPanel
+from dashboard.panels.alerts import AlertsPanel
+from dashboard.panels.graph import GraphPanel
+from dashboard.panels.dpi import DPIPanel
+from security.alerts import AlertEngine
+from security.graph import ConnectionGraph
+from security.reputation import ReputationChecker
+from analysis.dpi import DeepPacketInspector
 from dashboard.input_handler import InputHandler, Key, KeyEvent
 from config import (
     REFRESH_RATE, DB_PATH, DB_READ_POOL_SIZE, DB_WAL_MODE,
-    DB_WRITE_BATCH_SIZE, DB_WRITE_FLUSH_MS
+    DB_WRITE_BATCH_SIZE, DB_WRITE_FLUSH_MS,
+    ALERTS_ENABLED, REPUTATION_CHECK_ENABLED, REPUTATION_API_KEY,
+    GRAPH_MAX_NODES, GRAPH_MIN_BYTES
 )
 from db import ConnectionPool, DatabaseWriter
 from db.repositories import (
@@ -58,6 +67,9 @@ class ViewMode(Enum):
     PORTS = auto()
     DNS = auto()
     RELAY = auto()
+    ALERTS = auto()
+    GRAPH = auto()
+    DPI = auto()
 
 
 class InputMode(Enum):
@@ -167,6 +179,16 @@ class Dashboard:
         self.packet_analyzer = PacketAnalyzer()
         self.classifier = TrafficClassifier()
 
+        # Security components
+        self.alert_engine = AlertEngine() if ALERTS_ENABLED else None
+        self.connection_graph = ConnectionGraph()
+        self.reputation_checker = ReputationChecker(
+            api_key=REPUTATION_API_KEY
+        ) if REPUTATION_CHECK_ENABLED and REPUTATION_API_KEY else None
+
+        # Deep packet inspection
+        self.dpi = DeepPacketInspector(max_packets_per_flow=100)
+
         # Panels
         self.traffic_panel = TrafficPanel(self.flow_tracker, self.dns_resolver)
         self.paths_panel = PathsPanel(
@@ -183,6 +205,9 @@ class Dashboard:
         self.ports_panel = PortsPanel(self.port_tracker)
         self.dns_panel = DNSPanel(self.dns_tracker)
         self.relay_panel = RelayPanel(self.relay_repo)
+        self.alerts_panel = AlertsPanel(self.alert_engine) if self.alert_engine else None
+        self.graph_panel = GraphPanel(self.connection_graph)
+        self.dpi_panel = DPIPanel(self.dpi)
 
         # State
         self.view_mode = ViewMode.TRAFFIC
@@ -221,6 +246,9 @@ class Dashboard:
             ViewMode.PORTS: "[bold cyan]Ports[/bold cyan]",
             ViewMode.DNS: "[bold cyan]DNS[/bold cyan]",
             ViewMode.RELAY: "[bold cyan]Relay[/bold cyan]",
+            ViewMode.ALERTS: "[bold red]Alerts[/bold red]",
+            ViewMode.GRAPH: "[bold magenta]Graph[/bold magenta]",
+            ViewMode.DPI: "[bold yellow]DPI[/bold yellow]",
         }
         current_mode = mode_names[self.view_mode]
 
@@ -320,12 +348,31 @@ class Dashboard:
                     "[bold]1-9[/bold]=Select",
                     "[bold]r[/bold]=Refresh",
                 ]
+        elif self.view_mode == ViewMode.ALERTS:
+            controls = [
+                "[bold]↑↓[/bold]=Nav",
+                "[bold]Enter[/bold]=Ack",
+                "[bold]A[/bold]=Ack all",
+                "[bold]f[/bold]=Filter sev",
+                "[bold]a[/bold]=Show ack'd",
+            ]
+        elif self.view_mode == ViewMode.GRAPH:
+            controls = [
+                "[bold]v[/bold]=View mode",
+            ]
+        elif self.view_mode == ViewMode.DPI:
+            controls = [
+                "[bold]v[/bold]=View mode",
+                "[bold]←→[/bold]=Prev/Next pkt",
+                "[bold]↑↓[/bold]=Scroll",
+                "[bold]c[/bold]=Clear",
+            ]
         else:
             controls = []
 
         # Global controls
         global_controls = [
-            "[bold]1-7[/bold]=Views",
+            "[bold]0-9[/bold]=Views",
             "[bold]p[/bold]=Pause",
             "[bold]t[/bold]=Trace",
             "[bold]q[/bold]=Quit",
@@ -363,8 +410,20 @@ class Dashboard:
             content = self.ports_panel.render()
         elif self.view_mode == ViewMode.DNS:
             content = self.dns_panel.render()
-        else:  # RELAY
+        elif self.view_mode == ViewMode.RELAY:
             content = self.relay_panel.render()
+        elif self.view_mode == ViewMode.ALERTS:
+            if self.alerts_panel:
+                content = self.alerts_panel.render()
+            else:
+                from rich.text import Text
+                content = Text("[dim]Alerting is disabled. Set ALERTS_ENABLED=True in config.[/dim]")
+        elif self.view_mode == ViewMode.GRAPH:
+            content = self.graph_panel.render()
+        else:  # DPI
+            # Pass selected flows to DPI panel
+            self.dpi_panel.set_selected_flows(selected_flows)
+            content = self.dpi_panel.render()
 
         return Panel(content, border_style="dim")
 
@@ -416,6 +475,18 @@ class Dashboard:
         # DNS tracking (database-backed)
         if parsed.dns:
             self.dns_tracker.process_packet(parsed)
+
+        # Update connection graph
+        if flow:
+            self.connection_graph.add_flow(flow)
+
+        # Check for security alerts
+        if self.alert_engine and flow:
+            self.alert_engine.check_flow(flow)
+
+        # Deep packet inspection for targeted flows
+        if flow and self.dpi.is_target(flow.flow_key):
+            self.dpi.process_packet(packet, flow.flow_key)
 
         # Get flow key for database updates
         flow_key = flow.flow_key if flow else None
@@ -548,6 +619,12 @@ class Dashboard:
             self.view_mode = ViewMode.DNS
         elif event.char == "7":
             self.view_mode = ViewMode.RELAY
+        elif event.char == "8":
+            self.view_mode = ViewMode.ALERTS
+        elif event.char == "9":
+            self.view_mode = ViewMode.GRAPH
+        elif event.char == "0":
+            self.view_mode = ViewMode.DPI
 
         # Pause
         elif event.char == "p":
@@ -688,6 +765,52 @@ class Dashboard:
             elif event.key == Key.DELETE:
                 self.relay_panel.handle_special_key("delete")
 
+        # Alerts panel controls
+        elif self.view_mode == ViewMode.ALERTS and self.alerts_panel:
+            if event.key == Key.UP:
+                self.alerts_panel.move_up()
+            elif event.key == Key.DOWN:
+                self.alerts_panel.move_down()
+            elif event.key == Key.ENTER:
+                if self.alerts_panel.acknowledge_selected():
+                    self._show_status("[green]Alert acknowledged[/green]")
+            elif event.char == "A":  # Shift+A for ack all
+                count = self.alerts_panel.acknowledge_all()
+                self._show_status(f"[green]Acknowledged {count} alerts[/green]")
+            elif event.char == "a":  # Toggle showing acknowledged
+                show = self.alerts_panel.toggle_acknowledged()
+                status = "showing" if show else "hiding"
+                self._show_status(f"[cyan]{status.title()} acknowledged alerts[/cyan]")
+            elif event.char == "f":  # Filter severity
+                sev = self.alerts_panel.cycle_severity_filter()
+                if sev:
+                    self._show_status(f"[cyan]Filtering: {sev}[/cyan]")
+                else:
+                    self._show_status("[cyan]Showing all severities[/cyan]")
+
+        # Graph panel controls
+        elif self.view_mode == ViewMode.GRAPH:
+            if event.char == "v":
+                mode = self.graph_panel.cycle_view_mode()
+                self._show_status(f"[cyan]Graph view: {mode}[/cyan]")
+
+        # DPI panel controls
+        elif self.view_mode == ViewMode.DPI:
+            if event.char == "v":
+                mode = self.dpi_panel.cycle_view_mode()
+                self._show_status(f"[cyan]DPI view: {mode}[/cyan]")
+            elif event.key == Key.LEFT:
+                self.dpi_panel.prev_packet()
+            elif event.key == Key.RIGHT:
+                self.dpi_panel.next_packet()
+            elif event.key == Key.UP:
+                self.dpi_panel.scroll_up()
+            elif event.key == Key.DOWN:
+                self.dpi_panel.scroll_down()
+            elif event.char == "c":
+                self.dpi_panel.clear_inspection()
+                self._show_status("[cyan]DPI inspection cleared[/cyan]")
+
         return True
 
     def _handle_input(self, event: KeyEvent) -> bool:
@@ -814,6 +937,10 @@ class Dashboard:
         self.sniffer.stop()
         self.geo_resolver.stop_background_resolver()
         self.dns_resolver.stop()
+
+        # Stop reputation checker if running
+        if hasattr(self, 'reputation_checker') and self.reputation_checker:
+            self.reputation_checker.stop()
 
         # End session and cleanup database
         if hasattr(self, 'session_id') and self.session_id:

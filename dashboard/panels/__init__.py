@@ -5,9 +5,13 @@ from .analysis import AnalysisPanel, PacketAnalyzer
 from .ports import PortsPanel
 from .dns import DNSPanel
 from .relay import RelayPanel
+from .alerts import AlertsPanel
+from .graph import GraphPanel
+from .dpi import DPIPanel
 
 __all__ = [
     "TrafficPanel", "PathsPanel", "StatsPanel",
     "AnalysisPanel", "PacketAnalyzer", "PortsPanel",
-    "DNSPanel", "RelayPanel",
+    "DNSPanel", "RelayPanel", "AlertsPanel", "GraphPanel",
+    "DPIPanel",
 ]
