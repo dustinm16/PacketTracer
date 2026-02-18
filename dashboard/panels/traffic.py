@@ -1,14 +1,12 @@
 """Live traffic panel with selection and filtering."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Set, Tuple
+from typing import List, Optional, Dict, Set
 from rich.table import Table
-from rich.panel import Panel
 from rich.console import Group, RenderableType
 from rich.text import Text
 
 from tracking.flow import Flow, FlowTracker
-from geo.resolver import GeoInfo
 from geo.dns_resolver import DNSResolver
 from utils.network import format_bytes, format_packets, is_private_ip
 from config import MAX_FLOWS_DISPLAY

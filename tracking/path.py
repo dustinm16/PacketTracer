@@ -1,12 +1,10 @@
 """Active traceroute functionality."""
 
 import socket
-import struct
 import time
 import threading
 from dataclasses import dataclass, field
 from typing import List, Optional, Callable, Dict
-from concurrent.futures import ThreadPoolExecutor
 
 from scapy.all import IP, ICMP, UDP, sr1, conf
 

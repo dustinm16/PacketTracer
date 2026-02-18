@@ -4,7 +4,7 @@ import threading
 import time
 from queue import Queue, Empty
 from dataclasses import dataclass, field
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from enum import Enum, auto
 
 if TYPE_CHECKING:

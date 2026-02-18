@@ -1,11 +1,8 @@
 """Main dashboard application."""
 
 import os
-import sys
 import time
-import threading
-import traceback
-from typing import Optional, Callable
+from typing import Optional
 from enum import Enum, auto
 
 from rich.console import Console
@@ -16,13 +13,11 @@ from rich.text import Text
 
 from capture.sniffer import PacketSniffer
 from capture.parser import PacketParser
-from tracking.flow import FlowTracker
 from tracking.db_flow import DBFlowTracker
 from tracking.hops import HopAnalyzer
 from tracking.path import PathTracer
 from tracking.db_path import DBPathTracer
 from tracking.classifier import TrafficClassifier
-from tracking.ports import PortTracker
 from tracking.db_ports import DBPortTracker
 from tracking.dns_tracker import DNSTracker
 from geo.resolver import GeoResolver
@@ -47,7 +42,6 @@ from config import (
     REFRESH_RATE, DB_PATH, DB_READ_POOL_SIZE, DB_WAL_MODE,
     DB_WRITE_BATCH_SIZE, DB_WRITE_FLUSH_MS,
     ALERTS_ENABLED, REPUTATION_CHECK_ENABLED, REPUTATION_API_KEY,
-    GRAPH_MAX_NODES, GRAPH_MIN_BYTES
 )
 from db import ConnectionPool, DatabaseWriter
 from db.repositories import (
@@ -838,7 +832,7 @@ class Dashboard:
                 console=self.console,
                 refresh_per_second=int(1 / REFRESH_RATE),
                 screen=True,
-            ) as live:
+            ) as _live:  # noqa: F841 - context manager
                 while self.running:
                     layout["header"].update(self._render_header())
                     layout["main"].update(self._render_main())
@@ -873,7 +867,7 @@ class Dashboard:
                     console=self.console,
                     refresh_per_second=int(1 / REFRESH_RATE),
                     screen=True,
-                ) as live:
+                ) as _live:  # noqa: F841 - context manager
                     logger.info("Live display started, entering main loop")
                     while self.running:
                         try:

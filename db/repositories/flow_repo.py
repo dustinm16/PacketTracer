@@ -2,7 +2,7 @@
 
 import time
 from typing import Optional, Any, TYPE_CHECKING
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from ..connection import ConnectionPool

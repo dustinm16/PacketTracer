@@ -1,14 +1,12 @@
 """Traffic classification and purpose detection."""
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
+from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
 from enum import Enum, auto
 from collections import defaultdict
 import threading
-import re
 
 from tracking.flow import Flow
-from capture.parser import ParsedPacket
 
 
 class TrafficCategory(Enum):

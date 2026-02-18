@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 import threading
 
-from config import DEFAULT_TTL
-
 
 @dataclass
 class HopInfo:

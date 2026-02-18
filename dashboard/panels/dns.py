@@ -1,7 +1,7 @@
 """DNS query tracking panel."""
 
 import time
-from typing import List, Optional
+from typing import Optional
 from rich.table import Table
 from rich.panel import Panel
 from rich.console import Group, RenderableType

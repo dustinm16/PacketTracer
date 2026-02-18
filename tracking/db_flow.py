@@ -1,8 +1,7 @@
 """Database-backed flow tracker with compatible interface."""
 
-import time
 import threading
-from typing import Dict, Optional, Tuple, List, TYPE_CHECKING
+from typing import Dict, Optional, List, TYPE_CHECKING
 
 from capture.parser import ParsedPacket
 from config import FLOW_TIMEOUT, MAX_FLOWS
@@ -10,7 +9,6 @@ from .flow import Flow, FlowKey
 
 if TYPE_CHECKING:
     from db.repositories.flow_repo import FlowRepository, FlowRecord
-    from db.writer import DatabaseWriter
 
 
 class DBFlowTracker:

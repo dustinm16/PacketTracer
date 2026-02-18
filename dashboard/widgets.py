@@ -1,12 +1,9 @@
 """Reusable Rich UI components."""
 
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
-from rich.progress import Progress, BarColumn, TextColumn
-from rich.console import Group
-from rich.style import Style
 
 from utils.network import format_bytes, format_packets
 

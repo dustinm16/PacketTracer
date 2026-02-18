@@ -5,9 +5,6 @@ import time
 from typing import Dict, List, Tuple, Optional, Set
 from dataclasses import dataclass, field
 from collections import defaultdict
-from datetime import datetime
-
-from utils.network import format_bytes, format_packets
 
 
 @dataclass

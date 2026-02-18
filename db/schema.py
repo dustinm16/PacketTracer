@@ -578,8 +578,6 @@ def init_schema(pool_or_conn) -> None:
     Args:
         pool_or_conn: ConnectionPool instance or raw sqlite3.Connection
     """
-    import time
-
     # Handle both ConnectionPool and raw connection
     if hasattr(pool_or_conn, 'write_connection'):
         # It's a ConnectionPool

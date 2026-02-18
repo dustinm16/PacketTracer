@@ -1,7 +1,6 @@
 """DNS query repository for captured DNS traffic."""
 
 import json
-import time
 from typing import Optional, List, TYPE_CHECKING
 from dataclasses import dataclass, field
 
@@ -76,6 +75,7 @@ class DNSQueryRepository:
         response_code: Optional[int] = None,
         response_code_name: Optional[str] = None,
         answers: Optional[List[dict]] = None,
+        latency_ms: Optional[float] = None,
     ) -> None:
         """Record a DNS query or response."""
         if self._session_id is None:
@@ -98,6 +98,7 @@ class DNSQueryRepository:
             "response_code_name": response_code_name,
             "answer_count": len(answers) if answers else 0,
             "answers": json.dumps(answers) if answers else None,
+            "latency_ms": latency_ms,
             "is_nxdomain": 1 if is_nxdomain else 0,
             "is_error": 1 if is_error else 0,
         }

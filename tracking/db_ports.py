@@ -3,7 +3,6 @@
 import time
 import threading
 from typing import Dict, List, Tuple, Optional, Set, TYPE_CHECKING
-from dataclasses import dataclass, field
 from collections import defaultdict
 
 from .ports import PortStats, ScanActivity, KNOWN_SERVICES

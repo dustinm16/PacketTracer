@@ -1,9 +1,10 @@
 """IP ownership and WHOIS information lookup."""
 
 import socket
+import subprocess
 import threading
 import re
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 from collections import OrderedDict
 from queue import Queue, Empty
 from dataclasses import dataclass, field
@@ -54,21 +55,63 @@ class OwnershipResolver:
         return '.'.join(reversed(parts))
 
     def _lookup_cymru_dns(self, ip: str) -> Optional[OwnershipInfo]:
-        """Lookup ASN info via Team Cymru DNS."""
-        try:
-            import socket
+        """Lookup ASN info via Team Cymru DNS TXT records.
 
+        Uses dig command for TXT record lookup since socket.gethostbyname_ex
+        doesn't support TXT records.
+
+        Returns format: "ASN | IP | Network | Country | Registry"
+        """
+        try:
             # Query format: reversed_ip.origin.asn.cymru.com
             reversed_ip = self._reverse_ip(ip)
             query = f"{reversed_ip}.{self.CYMRU_DNS}"
 
-            # DNS TXT lookup
-            result = socket.gethostbyname_ex(query)
-            # This doesn't work for TXT records, need different approach
+            # Use dig for TXT lookup (faster than WHOIS)
+            result = subprocess.run(
+                ["dig", "+short", "TXT", query],
+                capture_output=True,
+                text=True,
+                timeout=3
+            )
 
-        except Exception:
-            pass
-        return None
+            if result.returncode != 0 or not result.stdout.strip():
+                return None
+
+            # Parse response: "ASN | IP | Network | Country | Registry"
+            txt_response = result.stdout.strip().strip('"')
+            parts = [p.strip() for p in txt_response.split('|')]
+
+            if len(parts) < 3:
+                return None
+
+            info = OwnershipInfo(ip=ip, timestamp=time.time(), resolved=True)
+            info.asn = f"AS{parts[0]}" if parts[0] else ""
+            info.network = parts[2] if len(parts) > 2 else ""
+            info.country = parts[3] if len(parts) > 3 else ""
+
+            # Get AS name from secondary query
+            if info.asn:
+                asn_num = parts[0]
+                as_query = f"AS{asn_num}.{self.CYMRU_ASN_DNS}"
+                as_result = subprocess.run(
+                    ["dig", "+short", "TXT", as_query],
+                    capture_output=True,
+                    text=True,
+                    timeout=3
+                )
+                if as_result.returncode == 0 and as_result.stdout.strip():
+                    # Format: "ASN | Country | Registry | Date | Name"
+                    as_txt = as_result.stdout.strip().strip('"')
+                    as_parts = [p.strip() for p in as_txt.split('|')]
+                    if len(as_parts) >= 5:
+                        info.as_name = as_parts[4]
+
+            return info
+
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+            # dig not available or timeout
+            return None
 
     def _parse_whois_line(self, line: str, info: OwnershipInfo) -> None:
         """Parse a line from WHOIS output."""
@@ -153,7 +196,17 @@ class OwnershipResolver:
 
         self.lookups += 1
 
-        # Try WHOIS query
+        # Try fast CYMRU DNS lookup first
+        info = self._lookup_cymru_dns(ip)
+        if info and info.asn:
+            # Cache and return the result
+            with self._lock:
+                self._cache[ip] = info
+                while len(self._cache) > self.cache_size:
+                    self._cache.popitem(last=False)
+            return info
+
+        # Fall back to WHOIS query for more details
         info = OwnershipInfo(ip=ip)
 
         response = self._whois_query(ip)

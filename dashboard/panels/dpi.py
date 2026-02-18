@@ -6,11 +6,8 @@ from datetime import datetime
 from rich.table import Table
 from rich.panel import Panel
 from rich.console import Group, RenderableType
-from rich.columns import Columns
-from rich.text import Text
-from rich.syntax import Syntax
 
-from analysis.dpi import DeepPacketInspector, FlowInspection, PacketCapture
+from analysis.dpi import DeepPacketInspector, FlowInspection
 from tracking.flow import Flow
 from utils.network import format_bytes
 

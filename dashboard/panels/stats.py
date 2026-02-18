@@ -1,18 +1,16 @@
 """Statistics panel."""
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Optional, List
 from collections import defaultdict
 from rich.table import Table
 from rich.panel import Panel
 from rich.console import Group, RenderableType
 from rich.columns import Columns
-from rich.text import Text
 
 from tracking.flow import FlowTracker, Flow
 from tracking.dns_tracker import DNSTracker
 from geo.resolver import GeoResolver
 from geo.dns_resolver import DNSResolver
-from geo.cache import GeoCache
 from utils.network import format_bytes, format_packets
 
 

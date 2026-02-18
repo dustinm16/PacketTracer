@@ -3,7 +3,7 @@
 import threading
 import time
 from typing import Dict, Optional, List, TYPE_CHECKING
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from capture.parser import ParsedPacket, DNSInfo
 
@@ -146,6 +146,7 @@ class DNSTracker:
                 response_code=dns_info.rcode,
                 response_code_name=dns_info.rcode_name,
                 answers=answers if answers else None,
+                latency_ms=latency_ms,
             )
 
         # Cleanup old pending queries

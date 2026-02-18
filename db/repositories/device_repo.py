@@ -3,7 +3,7 @@
 import time
 import json
 from typing import Optional, List, TYPE_CHECKING
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from ..connection import ConnectionPool

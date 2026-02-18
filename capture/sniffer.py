@@ -4,10 +4,10 @@ import threading
 from typing import Callable, Optional, List
 from queue import Queue
 
-from scapy.all import sniff, get_if_list, conf
+from scapy.all import sniff, get_if_list
 from scapy.packet import Packet
 
-from config import DEFAULT_INTERFACE, CAPTURE_FILTER, SNAP_LENGTH
+from config import DEFAULT_INTERFACE, CAPTURE_FILTER
 from utils.network import get_default_interface
 
 

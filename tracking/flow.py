@@ -91,9 +91,11 @@ class Flow:
         if len(self.ttl_values) > 100:
             self.ttl_values = self.ttl_values[-100:]
 
-    def is_expired(self, timeout: float = FLOW_TIMEOUT) -> bool:
+    def is_expired(self, timeout: float = FLOW_TIMEOUT, now: Optional[float] = None) -> bool:
         """Check if flow has expired."""
-        return (time.time() - self.last_seen) > timeout
+        if now is None:
+            now = time.time()
+        return (now - self.last_seen) > timeout
 
 
 FlowKey = Tuple[str, str, int, int, int]
@@ -169,7 +171,7 @@ class FlowTracker:
         """Remove expired flows or oldest flows if over capacity."""
         now = time.time()
         expired_keys = [
-            k for k, v in self._flows.items() if v.is_expired(self.timeout)
+            k for k, v in self._flows.items() if v.is_expired(self.timeout, now)
         ]
         for k in expired_keys:
             del self._flows[k]

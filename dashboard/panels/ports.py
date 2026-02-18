@@ -2,14 +2,13 @@
 
 from typing import List, Optional, Dict
 from collections import defaultdict
-from dataclasses import dataclass
 from rich.table import Table
 from rich.panel import Panel
 from rich.console import Group, RenderableType
 from rich.text import Text
 from rich.columns import Columns
 
-from tracking.ports import PortTracker, PortStats, ScanActivity, KNOWN_SERVICES
+from tracking.ports import PortTracker, PortStats, KNOWN_SERVICES
 from tracking.flow import Flow
 from utils.network import format_bytes, format_packets
 
@@ -141,7 +140,7 @@ class PortsPanel:
                 hit_style = "dim"
 
             table.add_row(
-                str(stats.port),
+                Text(str(stats.port), style=port_style),
                 stats.protocol,
                 service_name or "-",
                 Text(hit_str, style=hit_style),

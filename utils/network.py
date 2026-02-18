@@ -98,7 +98,7 @@ def get_service_name(port: int, protocol: str = "tcp") -> Optional[str]:
 
 def _resolve_filtered_ips() -> None:
     """Resolve ip-api.com to IP addresses for filtering."""
-    global _filtered_ips, _filtered_ips_resolved
+    global _filtered_ips_resolved
     if _filtered_ips_resolved:
         return
 

@@ -3,21 +3,20 @@
 from typing import List, Optional, Dict, Set, Union, TYPE_CHECKING
 
 from rich.table import Table
-from rich.panel import Panel
 from rich.console import Group, RenderableType
 from rich.text import Text
 
 from tracking.path import PathTracer, TracerouteResult, HopResult
-from tracking.hops import HopAnalyzer, HopInfo
+from tracking.hops import HopAnalyzer
 from tracking.flow import Flow
-from geo.resolver import GeoResolver, GeoInfo
+from geo.resolver import GeoResolver
 from geo.dns_resolver import DNSResolver
 from geo.ownership import OwnershipResolver
 from config import MAX_PATHS_DISPLAY
 
 if TYPE_CHECKING:
     from tracking.db_path import DBPathTracer
-    from db.repositories.hop_repo import HopRepository, TracerouteRecord, HopRecord
+    from db.repositories.hop_repo import HopRepository
     from db.repositories.route_repo import RouteRepository
 
 
@@ -400,8 +399,8 @@ class PathsPanel:
             trace = self.get_trace(dst_ip)
             if trace:
                 elements.append(self._render_traceroute(trace))
-                status = "Complete" if trace.completed else "In Progress"
-                elements.append(Text(f"[dim]Hops: {trace.total_hops} | Duration: {trace.duration:.1f}s[/dim]"))
+                status_text = "Complete" if trace.completed else "In Progress"
+                elements.append(Text(f"[dim]Hops: {trace.total_hops} | Status: {status_text} | Duration: {trace.duration:.1f}s[/dim]"))
                 elements.append(Text(""))  # Spacer
                 traces_shown += 1
 

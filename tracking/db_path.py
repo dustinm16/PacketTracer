@@ -1,11 +1,8 @@
 """Database-backed path tracer that persists traceroute results."""
 
-import time
 from typing import Optional, Callable, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from db.connection import ConnectionPool
-    from db.writer import DatabaseWriter
     from db.repositories.hop_repo import HopRepository
     from db.repositories.route_repo import RouteRepository
     from geo.resolver import GeoResolver

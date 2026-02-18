@@ -1,8 +1,8 @@
 """Packet type analysis panel."""
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import threading
 import time
 
@@ -10,10 +10,9 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.console import Group, RenderableType
 from rich.columns import Columns
-from rich.text import Text
 
-from tracking.flow import Flow, FlowTracker
-from tracking.classifier import TrafficClassifier, TrafficCategory, TrafficClassification
+from tracking.flow import Flow
+from tracking.classifier import TrafficClassifier, TrafficCategory
 from capture.parser import ParsedPacket
 from utils.network import format_bytes, format_packets
 
@@ -493,7 +492,6 @@ class AnalysisPanel:
                 unencrypted_count += count
                 unencrypted_bytes += bytes_
 
-        total_count = encrypted_count + unencrypted_count
         total_bytes = encrypted_bytes + unencrypted_bytes
 
         enc_pct = (encrypted_bytes / total_bytes * 100) if total_bytes > 0 else 0

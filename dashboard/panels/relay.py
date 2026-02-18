@@ -2,8 +2,8 @@
 
 import time
 import threading
-from typing import Optional, List, Dict, Any, Callable
-from dataclasses import dataclass, field
+from typing import Optional, List, Dict
+from dataclasses import dataclass
 from enum import Enum, auto
 from rich.table import Table
 from rich.panel import Panel
@@ -11,7 +11,7 @@ from rich.console import Group, RenderableType
 from rich.columns import Columns
 from rich.text import Text
 
-from db.repositories.relay_repo import RelayRepository, AgentInfo, AgentMetrics
+from db.repositories.relay_repo import RelayRepository, AgentInfo
 from utils.network import format_bytes
 
 

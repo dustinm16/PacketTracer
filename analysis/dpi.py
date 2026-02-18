@@ -1,17 +1,13 @@
 """Deep Packet Inspection module for detailed flow analysis."""
 
-import re
 import threading
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Set, Any
-from collections import deque
-from datetime import datetime
+from typing import Dict, List, Optional, Set, Any
 from enum import Enum
 
 from scapy.packet import Packet
 from scapy.layers.inet import IP, TCP, UDP
-from scapy.layers.l2 import Ether
 
 logger = logging.getLogger(__name__)
 
