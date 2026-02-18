@@ -1,5 +1,6 @@
 """Hostname and domain resolution with caching."""
 
+import logging
 import socket
 import threading
 from typing import Optional, Dict, Tuple, Callable, List, TYPE_CHECKING
@@ -9,6 +10,8 @@ from dataclasses import dataclass
 import time
 
 from config import DNS_CACHE_SIZE, DNS_CACHE_TTL, DNS_TIMEOUT
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from db.repositories.dns_repo import DNSRepository
@@ -160,8 +163,8 @@ class DNSResolver:
                 if callback:
                     try:
                         callback(info)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"DNS callback error for {ip}: {e}")
                 return
 
         # Register callback if provided
@@ -217,13 +220,13 @@ class DNSResolver:
                 for callback in callbacks:
                     try:
                         callback(info)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"DNS callback error for {ip}: {e}")
 
             except Empty:
                 continue
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"DNS resolver worker error: {e}")
 
     def start(self) -> None:
         """Start background resolver thread."""

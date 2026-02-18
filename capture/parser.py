@@ -1,5 +1,6 @@
 """Packet header parsing."""
 
+import logging
 from dataclasses import dataclass, field
 from typing import Optional, Tuple, List
 
@@ -9,6 +10,8 @@ from scapy.layers.l2 import Ether
 from scapy.layers.dns import DNS, DNSQR, DNSRR
 
 from config import PROTOCOL_NAMES
+
+logger = logging.getLogger(__name__)
 
 
 # DNS record type names
@@ -262,7 +265,7 @@ class PacketParser:
                             if isinstance(a.rdata, bytes):
                                 try:
                                     rdata = a.rdata.decode()
-                                except:
+                                except UnicodeDecodeError:
                                     rdata = a.rdata.hex()
                             else:
                                 rdata = str(a.rdata)
@@ -290,5 +293,6 @@ class PacketParser:
                 recursion_desired=recursion_desired,
                 recursion_available=recursion_available,
             )
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Failed to parse DNS packet: {e}")
             return None

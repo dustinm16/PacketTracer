@@ -338,8 +338,8 @@ class ReputationChecker:
                 from datetime import datetime
                 dt = datetime.fromisoformat(data["lastReportedAt"].replace("Z", "+00:00"))
                 last_reported = dt.timestamp()
-            except Exception:
-                pass
+            except (ValueError, AttributeError) as e:
+                logger.debug(f"Failed to parse lastReportedAt for {ip}: {e}")
 
         return ReputationResult(
             ip=ip,

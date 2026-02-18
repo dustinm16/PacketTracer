@@ -8,10 +8,12 @@ from .relay import RelayPanel
 from .alerts import AlertsPanel
 from .graph import GraphPanel
 from .dpi import DPIPanel
+from .tcp import TCPPanel
+from .trends import TrendsPanel
 
 __all__ = [
     "TrafficPanel", "PathsPanel", "StatsPanel",
     "AnalysisPanel", "PacketAnalyzer", "PortsPanel",
     "DNSPanel", "RelayPanel", "AlertsPanel", "GraphPanel",
-    "DPIPanel",
+    "DPIPanel", "TCPPanel", "TrendsPanel",
 ]

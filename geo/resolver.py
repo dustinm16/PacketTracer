@@ -1,5 +1,6 @@
 """Geo and ISP resolution using ip-api.com."""
 
+import logging
 import time
 import threading
 import requests
@@ -9,6 +10,8 @@ from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor
 
 from config import GEO_API_URL, GEO_API_BATCH_URL, GEO_API_RATE_LIMIT
+
+logger = logging.getLogger(__name__)
 from geo.cache import GeoCache
 from utils.network import is_private_ip
 
@@ -147,7 +150,8 @@ class GeoResolver:
                 self.cache.set(ip, geo_info)
             return geo_info
 
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Geo lookup failed for {ip}: {e}")
             return GeoInfo(ip=ip, query_success=False)
 
     def _query_batch(self, ips: List[str]) -> List[GeoInfo]:
@@ -191,7 +195,8 @@ class GeoResolver:
                     self.cache.set(geo_info.ip, geo_info)
                 results.append(geo_info)
 
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Geo batch lookup failed: {e}")
             for ip in to_query:
                 results.append(GeoInfo(ip=ip, query_success=False))
 
@@ -223,8 +228,8 @@ class GeoResolver:
             if callback:
                 try:
                     callback(cached)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Geo callback error for {ip}: {e}")
             return
 
         # Check if private IP - handle immediately
@@ -233,8 +238,8 @@ class GeoResolver:
             if callback:
                 try:
                     callback(geo_info)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Geo callback error for private IP {ip}: {e}")
             return
 
         # Register callback if provided
@@ -303,11 +308,11 @@ class GeoResolver:
                         for callback in callbacks:
                             try:
                                 callback(info)
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.debug(f"Geo callback error for {info.ip}: {e}")
 
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Geo background resolver error: {e}")
 
             # Rate limit sleep
             time.sleep(0.1)
