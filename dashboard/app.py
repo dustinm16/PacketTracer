@@ -453,8 +453,14 @@ class Dashboard:
         # Packet analysis
         self.packet_analyzer.process_packet(parsed)
 
-        # Traffic classification
-        self.classifier.classify_flow(flow)
+        # Traffic classification — tag the flow with its category
+        classification = self.classifier.classify_flow(flow)
+        if classification and flow:
+            tag = f"class:{classification.category.name.lower()}"
+            if tag not in flow.tags:
+                flow.tags.append(tag)
+            if classification.is_encrypted and "encrypted" not in flow.tags:
+                flow.tags.append("encrypted")
 
         # Port tracking (database-backed)
         self.port_tracker.record_packet(
@@ -469,6 +475,8 @@ class Dashboard:
         # DNS tracking (database-backed)
         if parsed.dns:
             self.dns_tracker.process_packet(parsed)
+            if flow and "dns" not in flow.tags:
+                flow.tags.append("dns")
 
         # Update connection graph
         if flow:
@@ -476,7 +484,28 @@ class Dashboard:
 
         # Check for security alerts
         if self.alert_engine and flow:
-            self.alert_engine.check_flow(flow)
+            alerts = self.alert_engine.check_flow(flow)
+            for alert in alerts:
+                tag = f"alert:{alert.alert_type.value}"
+                if tag not in flow.tags:
+                    flow.tags.append(tag)
+
+            # Check port scan detection
+            for scanner in self.port_tracker.get_likely_scanners():
+                scan_alert = self.alert_engine.check_scan_activity(scanner)
+                if scan_alert and "alert:port_scan" not in flow.tags:
+                    flow.tags.append("alert:port_scan")
+
+        # Check IP reputation for non-private destinations
+        if self.reputation_checker and self.alert_engine and not is_private_ip(parsed.dst_ip):
+            rep_result = self.reputation_checker.check_ip(parsed.dst_ip)
+            if rep_result and rep_result.is_malicious:
+                self.alert_engine.check_reputation(parsed.dst_ip, rep_result)
+                if flow and "malicious_ip" not in flow.tags:
+                    flow.tags.append("malicious_ip")
+            if rep_result and rep_result.is_suspicious and flow:
+                if "suspicious_ip" not in flow.tags:
+                    flow.tags.append("suspicious_ip")
 
         # Deep packet inspection for targeted flows
         if flow and self.dpi.is_target(flow.flow_key):
@@ -823,6 +852,8 @@ class Dashboard:
         self.sniffer.start()
         self.geo_resolver.start_background_resolver()
         self.dns_resolver.start()
+        if self.reputation_checker:
+            self.reputation_checker.start()
 
         layout = self._create_layout()
 
@@ -854,6 +885,8 @@ class Dashboard:
         self.sniffer.start()
         self.geo_resolver.start_background_resolver()
         self.dns_resolver.start()
+        if self.reputation_checker:
+            self.reputation_checker.start()
         logger.info("Background services started")
 
         layout = self._create_layout()

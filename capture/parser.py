@@ -119,6 +119,7 @@ class ParsedPacket:
     icmp_type: Optional[int] = None
     icmp_code: Optional[int] = None
     dns: Optional[DNSInfo] = None  # DNS info if this is a DNS packet
+    tags: List[str] = field(default_factory=list)  # Detection/classification tags
 
     @property
     def flow_key(self) -> Tuple[str, str, int, int, int]:

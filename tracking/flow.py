@@ -40,6 +40,9 @@ class Flow:
     src_geo: Optional[Dict] = None
     dst_geo: Optional[Dict] = None
 
+    # Detection/classification tags
+    tags: List[str] = field(default_factory=list)
+
     @property
     def flow_key(self) -> str:
         """Unique identifier for this flow (5-tuple)."""
