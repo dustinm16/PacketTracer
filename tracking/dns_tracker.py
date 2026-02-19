@@ -1,9 +1,11 @@
 """DNS query and response tracking."""
 
+import math
 import threading
 import time
-from typing import Dict, Optional, List, TYPE_CHECKING
-from dataclasses import dataclass
+from collections import defaultdict
+from typing import Dict, Optional, List, Set, TYPE_CHECKING
+from dataclasses import dataclass, field
 
 from capture.parser import ParsedPacket, DNSInfo
 
@@ -20,6 +22,23 @@ class PendingDNSQuery:
     query_name: str
     query_type: int
     query_type_name: str
+
+
+@dataclass
+class DNSTunnelIndicator:
+    """Indicators that a domain may be used for DNS tunneling."""
+    domain: str
+    score: float = 0.0          # 0.0–1.0
+    reasons: List[str] = field(default_factory=list)
+    query_count: int = 0
+    avg_label_length: float = 0.0
+    max_label_length: int = 0
+    subdomain_count: int = 0
+    txt_query_count: int = 0
+
+    @property
+    def is_suspicious(self) -> bool:
+        return self.score >= 0.5
 
 
 class DNSTracker:
@@ -48,6 +67,12 @@ class DNSTracker:
         self._total_responses = 0
         self._nxdomain_count = 0
         self._error_count = 0
+
+        # DNS tunneling detection state (per base domain)
+        self._domain_subdomains: Dict[str, Set[str]] = defaultdict(set)
+        self._domain_query_count: Dict[str, int] = defaultdict(int)
+        self._domain_txt_count: Dict[str, int] = defaultdict(int)
+        self._domain_label_lengths: Dict[str, List[int]] = defaultdict(list)
 
         # Set session on repo
         self.dns_query_repo.set_session(session_id)
@@ -81,6 +106,9 @@ class DNSTracker:
                 query_type_name=query.qtype_name,
                 is_response=False,
             )
+
+            # Track tunneling indicators
+            self._track_tunnel_indicators(query.name, query.qtype)
 
             # Store pending query for latency matching
             self._pending_queries[dns_info.transaction_id] = PendingDNSQuery(
@@ -237,3 +265,126 @@ class DNSTracker:
             "error_count": self._error_count,
             "pending_queries": len(self._pending_queries),
         }
+
+    # ------------------------------------------------------------------
+    # DNS tunneling detection
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _extract_base_domain(name: str) -> str:
+        """Extract base domain (last two labels) from FQDN.
+
+        'abc123.data.evil.com' -> 'evil.com'
+        """
+        parts = name.rstrip(".").split(".")
+        if len(parts) >= 2:
+            return ".".join(parts[-2:])
+        return name
+
+    def _track_tunnel_indicators(self, query_name: str, query_type: int) -> None:
+        """Accumulate per-domain statistics used for tunneling detection."""
+        base = self._extract_base_domain(query_name)
+        self._domain_query_count[base] += 1
+
+        # Track unique subdomains (the full name minus the base)
+        self._domain_subdomains[base].add(query_name)
+
+        # Track label lengths (excluding the base domain labels)
+        labels = query_name.rstrip(".").split(".")
+        if len(labels) > 2:
+            subdomain_labels = labels[:-2]
+            for label in subdomain_labels:
+                self._domain_label_lengths[base].append(len(label))
+                # Cap stored lengths to prevent unbounded growth
+                if len(self._domain_label_lengths[base]) > 500:
+                    self._domain_label_lengths[base] = self._domain_label_lengths[base][-300:]
+
+        # Track TXT queries (commonly used in DNS tunneling)
+        if query_type == 16:  # TXT
+            self._domain_txt_count[base] += 1
+
+    def check_tunnel_indicators(self, min_queries: int = 10) -> List[DNSTunnelIndicator]:
+        """Evaluate all tracked domains for DNS tunneling indicators.
+
+        Tunneling signals:
+          1. High number of unique subdomains per base domain
+          2. Long subdomain labels (data encoded in labels)
+          3. High query volume to a single base domain
+          4. High proportion of TXT queries
+        """
+        results = []
+
+        with self._lock:
+            domains = list(self._domain_query_count.keys())
+
+        for domain in domains:
+            count = self._domain_query_count.get(domain, 0)
+            if count < min_queries:
+                continue
+
+            indicator = self._evaluate_domain(domain)
+            if indicator and indicator.score > 0.2:
+                results.append(indicator)
+
+        results.sort(key=lambda i: i.score, reverse=True)
+        return results
+
+    def _evaluate_domain(self, domain: str) -> Optional[DNSTunnelIndicator]:
+        """Score a single domain for tunneling likelihood."""
+        count = self._domain_query_count.get(domain, 0)
+        subdomains = self._domain_subdomains.get(domain, set())
+        txt_count = self._domain_txt_count.get(domain, 0)
+        label_lengths = self._domain_label_lengths.get(domain, [])
+
+        indicator = DNSTunnelIndicator(
+            domain=domain,
+            query_count=count,
+            subdomain_count=len(subdomains),
+            txt_query_count=txt_count,
+        )
+
+        score = 0.0
+
+        # Signal 1: Many unique subdomains (data encoded as subdomains)
+        if len(subdomains) > 50:
+            score += 0.35
+            indicator.reasons.append(f"{len(subdomains)} unique subdomains")
+        elif len(subdomains) > 20:
+            score += 0.15
+            indicator.reasons.append(f"{len(subdomains)} unique subdomains")
+
+        # Signal 2: Long labels (encoded data)
+        if label_lengths:
+            avg_len = sum(label_lengths) / len(label_lengths)
+            max_len = max(label_lengths)
+            indicator.avg_label_length = avg_len
+            indicator.max_label_length = max_len
+
+            if avg_len > 30:
+                score += 0.3
+                indicator.reasons.append(f"avg label length {avg_len:.0f} chars")
+            elif avg_len > 15:
+                score += 0.15
+                indicator.reasons.append(f"avg label length {avg_len:.0f} chars")
+
+            if max_len > 50:
+                score += 0.1
+                indicator.reasons.append(f"max label {max_len} chars")
+
+        # Signal 3: High proportion of TXT queries
+        if count > 0 and txt_count > 0:
+            txt_ratio = txt_count / count
+            if txt_ratio > 0.5:
+                score += 0.2
+                indicator.reasons.append(f"{txt_ratio:.0%} TXT queries")
+            elif txt_ratio > 0.2:
+                score += 0.1
+                indicator.reasons.append(f"{txt_ratio:.0%} TXT queries")
+
+        # Signal 4: Very high query rate to a single domain
+        if count > 200:
+            score += 0.1
+            indicator.reasons.append(f"{count} queries")
+
+        indicator.score = min(1.0, score)
+        return indicator

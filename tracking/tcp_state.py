@@ -149,9 +149,11 @@ class TCPConnection:
         """Check if connection is still active."""
         return self.state in (TCPState.ESTABLISHED, TCPState.SYN_SENT, TCPState.SYN_RECEIVED)
 
-    def is_expired(self, timeout: float = 300.0) -> bool:
+    def is_expired(self, timeout: float = 300.0, now: Optional[float] = None) -> bool:
         """Check if connection has timed out."""
-        return (time.time() - self.last_seen) > timeout
+        if now is None:
+            now = time.time()
+        return (now - self.last_seen) > timeout
 
 
 class TCPStateTracker:
@@ -330,30 +332,50 @@ class TCPStateTracker:
             elif conn.state == TCPState.CLOSE_WAIT:
                 conn.state = TCPState.LAST_ACK
 
+    @staticmethod
+    def _seq_before(a: int, b: int) -> bool:
+        """Check if TCP sequence number a comes before b (handles 32-bit wraparound).
+
+        Uses the standard TCP comparison: a < b iff (b - a) mod 2^32 < 2^31.
+        """
+        diff = (b - a) & 0xFFFFFFFF
+        return 0 < diff < 0x80000000
+
     def _track_sequences(
         self,
         conn: TCPConnection,
         packet: ParsedPacket,
         is_client: bool
     ) -> None:
-        """Track sequence numbers for retransmission detection."""
+        """Track sequence numbers for retransmission and out-of-order detection."""
         if packet.seq is None:
             return
 
         if is_client:
-            if conn.last_seq_client != 0 and packet.seq <= conn.last_seq_client:
-                # Possible retransmission
-                if packet.seq < conn.last_seq_client:
+            if conn.last_seq_client != 0:
+                if packet.seq == conn.last_seq_client:
+                    # Same seq as last — possible duplicate/retransmission
                     conn.retransmissions += 1
+                elif self._seq_before(packet.seq, conn.last_seq_client):
+                    # Seq is older than last seen — retransmission or out-of-order
+                    conn.retransmissions += 1
+                    conn.out_of_order += 1
             conn.last_seq_client = packet.seq
             if packet.ack:
+                if packet.ack == conn.last_ack_client and conn.last_ack_client != 0:
+                    conn.duplicate_acks += 1
                 conn.last_ack_client = packet.ack
         else:
-            if conn.last_seq_server != 0 and packet.seq <= conn.last_seq_server:
-                if packet.seq < conn.last_seq_server:
+            if conn.last_seq_server != 0:
+                if packet.seq == conn.last_seq_server:
                     conn.retransmissions += 1
+                elif self._seq_before(packet.seq, conn.last_seq_server):
+                    conn.retransmissions += 1
+                    conn.out_of_order += 1
             conn.last_seq_server = packet.seq
             if packet.ack:
+                if packet.ack == conn.last_ack_server and conn.last_ack_server != 0:
+                    conn.duplicate_acks += 1
                 conn.last_ack_server = packet.ack
 
     def _prune_connections(self) -> None:

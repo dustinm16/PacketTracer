@@ -37,6 +37,8 @@ from security.alerts import AlertEngine
 from security.graph import ConnectionGraph
 from security.reputation import ReputationChecker
 from analysis.dpi import DeepPacketInspector
+from analysis.anomaly import FlowAnomalyDetector
+from analysis.beaconing import BeaconDetector
 from dashboard.input_handler import InputHandler, Key, KeyEvent
 from config import (
     REFRESH_RATE, DB_PATH, DB_READ_POOL_SIZE, DB_WAL_MODE,
@@ -182,6 +184,10 @@ class Dashboard:
 
         # Deep packet inspection
         self.dpi = DeepPacketInspector(max_packets_per_flow=100)
+
+        # Flow anomaly detection and beaconing
+        self.anomaly_detector = FlowAnomalyDetector()
+        self.beacon_detector = BeaconDetector()
 
         # Panels
         self.traffic_panel = TrafficPanel(self.flow_tracker, self.dns_resolver)
@@ -506,6 +512,21 @@ class Dashboard:
             if rep_result and rep_result.is_suspicious and flow:
                 if "suspicious_ip" not in flow.tags:
                     flow.tags.append("suspicious_ip")
+
+        # Flow anomaly scoring (runs every packet but scoring is cheap)
+        if flow:
+            self.anomaly_detector.record_connection(parsed.src_ip, parsed.timestamp)
+            anomaly = self.anomaly_detector.score_flow(flow)
+            if anomaly.is_anomalous and "anomalous" not in flow.tags:
+                flow.tags.append("anomalous")
+                for reason in anomaly.reasons[:3]:
+                    tag = f"anomaly:{reason.split(':')[0]}"
+                    if tag not in flow.tags:
+                        flow.tags.append(tag)
+
+        # Beaconing detection (record every connection)
+        if flow:
+            self.beacon_detector.record_connection(parsed.src_ip, parsed.dst_ip, parsed.timestamp)
 
         # Deep packet inspection for targeted flows
         if flow and self.dpi.is_target(flow.flow_key):
