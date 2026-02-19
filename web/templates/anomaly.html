@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set page = "anomaly" %}
+{% block title %}Anomaly Detection — PacketTracer{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Anomaly Detection</h1>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-label">Flows Scored</div>
+        <div class="stat-value" id="anomaly-scored">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Anomalous</div>
+        <div class="stat-value" id="anomaly-flagged">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">IPs Tracked</div>
+        <div class="stat-value" id="anomaly-tracked-ips">-</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Anomalous Flows</div>
+    <div style="overflow-x:auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Flow</th>
+                    <th>Score</th>
+                    <th>Severity</th>
+                    <th>Reasons</th>
+                </tr>
+            </thead>
+            <tbody id="anomaly-flows-tbody">
+                <tr><td colspan="4" class="empty-state"><p>No anomalies detected</p></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Beaconing Candidates</div>
+    <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;">
+        Periodic connection patterns that may indicate C2 callbacks or exfiltration heartbeats.
+    </p>
+    <div style="overflow-x:auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Source IP</th>
+                    <th>Dest IP</th>
+                    <th>Score</th>
+                    <th>Connections</th>
+                    <th>Mean Interval</th>
+                    <th>Jitter</th>
+                </tr>
+            </thead>
+            <tbody id="beacon-tbody">
+                <tr><td colspan="6" class="empty-state"><p>No beacons detected</p></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% set page = "dashboard" %}
+{% block title %}Dashboard — PacketTracer{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <div id="capture-status"><span class="pulse pulse-green"></span>Capturing</div>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-label">Packets</div>
+        <div class="stat-value" id="stat-packets">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Flows</div>
+        <div class="stat-value" id="stat-flows">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Active Flows</div>
+        <div class="stat-value" id="stat-active">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Traffic</div>
+        <div class="stat-value" id="stat-bytes">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Unacked Alerts</div>
+        <div class="stat-value" id="stat-alerts">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Anomalous Flows</div>
+        <div class="stat-value" id="stat-anomalies">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Beacon Candidates</div>
+        <div class="stat-value" id="stat-beacons">-</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Quick Links</div>
+    <p style="color:var(--text-secondary);font-size:0.85rem;">
+        <a href="{{ url_for('main.flows') }}">View Flows</a> &middot;
+        <a href="{{ url_for('main.alerts') }}">View Alerts</a> &middot;
+        <a href="{{ url_for('main.dns') }}">DNS Analysis</a> &middot;
+        <a href="{{ url_for('main.anomaly') }}">Anomaly Detection</a> &middot;
+        <a href="{{ url_for('main.settings') }}">Settings</a>
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% set page = "dns" %}
+{% block title %}DNS Analysis — PacketTracer{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">DNS Analysis</h1>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-label">Queries</div>
+        <div class="stat-value" id="dns-queries">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Responses</div>
+        <div class="stat-value" id="dns-responses">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">NXDOMAIN</div>
+        <div class="stat-value" id="dns-nxdomain">-</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Top Queried Domains</div>
+    <div style="overflow-x:auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Domain</th>
+                    <th>Queries</th>
+                    <th>Responses</th>
+                    <th>NXDOMAIN</th>
+                </tr>
+            </thead>
+            <tbody id="dns-domains-tbody">
+                <tr><td colspan="4" class="empty-state"><p>Loading...</p></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">DNS Tunneling Indicators</div>
+    <div style="overflow-x:auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Domain</th>
+                    <th>Score</th>
+                    <th>Queries</th>
+                    <th>Subdomains</th>
+                    <th>Avg Label Len</th>
+                    <th>Reasons</th>
+                </tr>
+            </thead>
+            <tbody id="dns-tunnel-tbody">
+                <tr><td colspan="6" class="empty-state"><p>No suspicious domains detected</p></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

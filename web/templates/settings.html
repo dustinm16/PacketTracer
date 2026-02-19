@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set page = "settings" %}
+{% block title %}Settings — PacketTracer{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Settings</h1>
+</div>
+
+<div class="card">
+    <div class="card-header">Encrypted Configuration</div>
+    <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem;">
+        Sensitive values (API keys, credentials) are stored encrypted at rest using Fernet (AES-128-CBC + HMAC-SHA256).
+    </p>
+
+    {% if config_keys %}
+    <table class="data-table" style="margin-bottom:1.5rem;">
+        <thead>
+            <tr>
+                <th>Key</th>
+                <th>Value</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for key in config_keys %}
+            <tr>
+                <td>{{ key }}</td>
+                <td>{{ config_vals.get(key, '') }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('main.delete_setting', key=key) }}" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-danger"
+                                onclick="return confirm('Delete {{ key }}?')">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;">No encrypted configuration stored yet.</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('main.update_setting') }}">
+        <div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+            <div class="form-group" style="flex:1;min-width:150px;margin-bottom:0;">
+                <label for="key">Key</label>
+                <input type="text" id="key" name="key" class="form-control" placeholder="e.g. REPUTATION_API_KEY" required>
+            </div>
+            <div class="form-group" style="flex:2;min-width:200px;margin-bottom:0;">
+                <label for="value">Value</label>
+                <input type="text" id="value" name="value" class="form-control" placeholder="value" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">Configuration Reference</div>
+    <p style="font-size:0.8rem;color:var(--text-muted);">
+        Common keys you may want to store encrypted:
+    </p>
+    <table class="data-table">
+        <thead><tr><th>Key</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td>REPUTATION_API_KEY</td><td>AbuseIPDB API key for IP reputation checks</td></tr>
+            <tr><td>WEBHOOK_URL</td><td>Webhook URL for alert delivery</td></tr>
+            <tr><td>SMTP_PASSWORD</td><td>SMTP password for email alert delivery</td></tr>
+            <tr><td>SYSLOG_HOST</td><td>Syslog server address for alert forwarding</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

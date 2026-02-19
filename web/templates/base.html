@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PacketTracer{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body data-page="{{ page|default('') }}">
+{% if current_user %}
+<div class="app-container">
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <span>&#9656;</span> <span>PacketTracer</span>
+        </div>
+        <div class="sidebar-section">Monitor</div>
+        <a href="{{ url_for('main.dashboard') }}" class="{% if page == 'dashboard' %}active{% endif %}">
+            &#9632; <span>Dashboard</span>
+        </a>
+        <a href="{{ url_for('main.flows') }}" class="{% if page == 'flows' %}active{% endif %}">
+            &#8644; <span>Flows</span>
+        </a>
+        <a href="{{ url_for('main.alerts') }}" class="{% if page == 'alerts' %}active{% endif %}">
+            &#9888; <span>Alerts</span>
+        </a>
+        <div class="sidebar-section">Analysis</div>
+        <a href="{{ url_for('main.dns') }}" class="{% if page == 'dns' %}active{% endif %}">
+            &#8984; <span>DNS</span>
+        </a>
+        <a href="{{ url_for('main.anomaly') }}" class="{% if page == 'anomaly' %}active{% endif %}">
+            &#9881; <span>Anomaly</span>
+        </a>
+        <div class="sidebar-section">Admin</div>
+        <a href="{{ url_for('main.settings') }}" class="{% if page == 'settings' %}active{% endif %}">
+            &#9881; <span>Settings</span>
+        </a>
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('auth.manage_users') }}" class="{% if page == 'users' %}active{% endif %}">
+            &#9823; <span>Users</span>
+        </a>
+        {% endif %}
+        <a href="{{ url_for('auth.logout') }}">
+            &#10140; <span>Logout</span>
+        </a>
+    </nav>
+    <main class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+</div>
+{% else %}
+{% block fullpage %}{% endblock %}
+{% endif %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

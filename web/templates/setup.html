@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Setup — PacketTracer{% endblock %}
+{% block fullpage %}
+<div class="login-container">
+    <div class="login-box">
+        <div class="login-title">Create Admin Account</div>
+        <p style="text-align:center;color:var(--text-secondary);font-size:0.85rem;margin-bottom:1.25rem;">
+            No users found. Create the first admin account to get started.
+        </p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+        <form method="POST">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-control"
+                       required minlength="3" autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control"
+                       required minlength="8">
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" class="form-control"
+                       required minlength="8">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Create Account</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

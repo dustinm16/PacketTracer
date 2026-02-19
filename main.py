@@ -4,6 +4,7 @@
 import argparse
 import os
 import sys
+import threading
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -43,6 +44,55 @@ def check_permissions():
     return True
 
 
+def _check_web_deps():
+    """Check if optional web dependencies are installed."""
+    missing = []
+    try:
+        import flask  # noqa: F401
+    except ImportError:
+        missing.append("flask>=3.0.0")
+    try:
+        import cryptography  # noqa: F401
+    except ImportError:
+        missing.append("cryptography>=41.0.0")
+    return missing
+
+
+def run_web(dashboard, host, port):
+    """Start the web UI server.
+
+    Imports flask/cryptography lazily so the core tool works without them.
+    """
+    missing = _check_web_deps()
+    if missing:
+        console = Console()
+        console.print(
+            "[bold red]Error:[/bold red] Web UI requires additional packages:",
+            style="red",
+        )
+        console.print(f"  pip install {' '.join(missing)}")
+        console.print(
+            "\nOr install all web dependencies with:\n"
+            "  pip install -r requirements-web.txt"
+        )
+        return 1
+
+    from web.app import create_app
+    from web.config_store import EncryptedConfigStore
+
+    db_path = os.path.expanduser("~/.packettracer/data.db")
+    config_store = EncryptedConfigStore(db_path=db_path)
+
+    app = create_app(dashboard=dashboard, config_store=config_store)
+
+    console = Console()
+    console.print(f"[green]Web UI available at http://{host}:{port}[/green]")
+    console.print("[dim]First visit will prompt you to create an admin account[/dim]")
+
+    # Run Flask (threaded so it doesn't block the capture pipeline)
+    app.run(host=host, port=port, debug=False, use_reloader=False)
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -55,6 +105,8 @@ Examples:
   sudo python main.py -f "tcp port 80"   # Filter HTTP traffic only
   sudo python main.py --list             # List available interfaces
   sudo python main.py -t 8.8.8.8         # Traceroute to IP
+  sudo python main.py --web              # Start web UI (requires flask)
+  sudo python main.py --web --web-port 9000  # Custom web port
 
 Views:
   1 - Traffic    Live flow table with navigation and selection
@@ -109,6 +161,22 @@ Global:
         action="store_true",
         help="Run without keyboard input handling (use Ctrl+C to exit)",
     )
+    parser.add_argument(
+        "--web",
+        action="store_true",
+        help="Start web UI instead of terminal dashboard (requires flask)",
+    )
+    parser.add_argument(
+        "--web-host",
+        default="127.0.0.1",
+        help="Web UI listen address (default: 127.0.0.1)",
+    )
+    parser.add_argument(
+        "--web-port",
+        type=int,
+        default=8080,
+        help="Web UI listen port (default: 8080)",
+    )
 
     args = parser.parse_args()
 
@@ -135,6 +203,19 @@ Global:
             console.print(f"[cyan]Starting traceroute to {args.traceroute}...[/cyan]")
             dashboard.traceroute(args.traceroute)
 
+        if args.web:
+            # Web UI mode: start capture in background, run Flask in foreground
+            console.print("[green]Starting PacketTracer with Web UI...[/green]")
+
+            # Start packet capture in background (the sniffer runs in its own thread)
+            dashboard.running = True
+            dashboard.sniffer.start(callback=dashboard._packet_callback)
+            import time
+            dashboard._start_time = time.time()
+
+            return run_web(dashboard, args.web_host, args.web_port)
+
+        # Terminal UI mode
         console.print("[green]Starting PacketTracer...[/green]")
         console.print("[dim]Press 'q' to quit, '?' for help[/dim]\n")
 

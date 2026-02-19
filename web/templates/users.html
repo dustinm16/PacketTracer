@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% set page = "users" %}
+{% block title %}User Management — PacketTracer{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">User Management</h1>
+</div>
+
+<div class="card">
+    <div class="card-header">Accounts</div>
+    <table class="data-table" style="margin-bottom:1.5rem;">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th>Last Login</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.username }}</td>
+                <td><span class="badge {% if user.role == 'admin' %}badge-critical{% else %}badge-info{% endif %}">{{ user.role }}</span></td>
+                <td>{{ user.created_at | int }}</td>
+                <td>{{ user.last_login | int if user.last_login else "Never" }}</td>
+                <td>
+                    {% if user.id != session.get('user_id') %}
+                    <form method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-danger"
+                                onclick="return confirm('Delete user {{ user.username }}?')">Delete</button>
+                    </form>
+                    {% else %}
+                    <span style="color:var(--text-muted);font-size:0.8rem;">You</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <div class="card-header">Add User</div>
+    <form method="POST" action="{{ url_for('auth.add_user') }}">
+        <div style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+            <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0;">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-control" required minlength="3">
+            </div>
+            <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0;">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control" required minlength="8">
+            </div>
+            <div class="form-group" style="min-width:100px;margin-bottom:0;">
+                <label for="role">Role</label>
+                <select id="role" name="role" class="form-control">
+                    <option value="viewer">Viewer</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Add User</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
