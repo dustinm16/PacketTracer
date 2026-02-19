@@ -47,6 +47,9 @@ htmlcov/
 packettracer.log
 ~/.packettracer/
 
+# Claude Code
+CLAUDE.md
+
 # OS
 .DS_Store
 Thumbs.db
